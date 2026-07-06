@@ -1,0 +1,64 @@
+{
+  "name": "gunte",
+  "version": "0.0.1",
+  "description": "Tiny pointer-based drag-and-drop that works on touch and never shows the no-drop cursor. Framework-agnostic core plus SolidJS, React, Vue, native DOM, and React Native adapters.",
+  "type": "module",
+  "license": "MIT",
+  "author": "mrksye",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrksye/gunte.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mrksye/gunte/issues"
+  },
+  "homepage": "https://github.com/mrksye/gunte#readme",
+  "keywords": [
+    "drag-and-drop",
+    "dnd",
+    "pointer-events",
+    "touch",
+    "mobile",
+    "solid-js",
+    "solidjs",
+    "react",
+    "react-native",
+    "vue"
+  ],
+  "sideEffects": false,
+  "files": [
+    "core.ts",
+    "native.ts",
+    "solid.tsx",
+    "react.tsx",
+    "react-native.tsx",
+    "vue.ts",
+    "index.ts",
+    "README.md",
+    "CONTRIBUTING.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./index.ts",
+    "./core": "./core.ts",
+    "./native": "./native.ts",
+    "./solid": "./solid.tsx",
+    "./react": "./react.tsx",
+    "./react-native": "./react-native.tsx",
+    "./vue": "./vue.ts"
+  },
+  "peerDependencies": {
+    "solid-js": ">=1.6.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "react-native": ">=0.70.0",
+    "vue": ">=3.2.0"
+  },
+  "peerDependenciesMeta": {
+    "solid-js": { "optional": true },
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "react-native": { "optional": true },
+    "vue": { "optional": true }
+  }
+}

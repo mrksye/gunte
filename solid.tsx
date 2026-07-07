@@ -1,4 +1,3 @@
-/** @jsxImportSource solid-js */
 import { createContext, createSignal, onCleanup, onMount, useContext, type Accessor, type JSX } from 'solid-js'
 import { render } from 'solid-js/web'
 import { createGoontehCore, type GoontehConfig, type GoontehCore, type Point } from './core'

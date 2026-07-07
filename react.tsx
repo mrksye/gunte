@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { createGoontehCore, type GoontehConfig, type GoontehCore, type Point } from './core'

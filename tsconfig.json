@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "jsxImportSource": "react",
+    "jsxImportSource": "solid-js",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "strict": true,
     "noEmit": true,

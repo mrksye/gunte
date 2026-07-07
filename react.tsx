@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { createGoontehCore, type GoontehConfig, type GoontehCore } from './core'
+import { createGoontehCore, type GoontehConfig, type GoontehCore, type Point } from './core'
 
 /**
  * goonteh — React adapter.
@@ -95,7 +95,7 @@ export function Drop({
   children,
 }: {
   accepts: (kind: string, payload: unknown) => boolean
-  onDrop: (payload: unknown, kind: string) => void
+  onDrop: (payload: unknown, kind: string, point: Point) => void
   className?: string
   activeClass?: string
   children: ReactNode
@@ -110,7 +110,7 @@ export function Drop({
     if (!el) return
     const h = core.dropzone(el, {
       accepts: (k, p) => latest.current.accepts(k, p),
-      onDrop: (p, k) => latest.current.onDrop(p, k),
+      onDrop: (p, k, pt) => latest.current.onDrop(p, k, pt),
     })
     handle.current = h
     return () => h.destroy()

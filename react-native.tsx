@@ -11,7 +11,7 @@ import { Animated, PanResponder, StyleSheet, View, type StyleProp, type ViewStyl
  * `measureInWindow`. `react` and `react-native` are optional peer dependencies.
  */
 type Rect = { x: number; y: number; w: number; h: number }
-type Zone = { rect: Rect | null; accepts: (kind: string, payload: unknown) => boolean; onDrop: (payload: unknown, kind: string) => void }
+type Zone = { rect: Rect | null; accepts: (kind: string, payload: unknown) => boolean; onDrop: (payload: unknown, kind: string, point: { x: number; y: number }) => void }
 type Active = { payload: unknown; kind: string; ghost: ReactNode }
 
 type Ctx = {
@@ -71,7 +71,7 @@ export function GoontehProvider({ children }: { children: ReactNode }) {
       const a = activeRef.current
       if (a) {
         const h = hit(point.current.x, point.current.y)
-        if (h && h.zone.accepts(a.kind, a.payload)) h.zone.onDrop(a.payload, a.kind)
+        if (h && h.zone.accepts(a.kind, a.payload)) h.zone.onDrop(a.payload, a.kind, { x: point.current.x, y: point.current.y })
       }
       activeRef.current = null
       setActive(null)
@@ -165,7 +165,7 @@ export function Drop({
   children,
 }: {
   accepts: (kind: string, payload: unknown) => boolean
-  onDrop: (payload: unknown, kind: string) => void
+  onDrop: (payload: unknown, kind: string, point: { x: number; y: number }) => void
   style?: StyleProp<ViewStyle>
   activeStyle?: StyleProp<ViewStyle>
   children: ReactNode

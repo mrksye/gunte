@@ -1,7 +1,7 @@
 /** @jsxImportSource solid-js */
 import { createContext, createSignal, onCleanup, onMount, useContext, type Accessor, type JSX } from 'solid-js'
 import { render } from 'solid-js/web'
-import { createGoontehCore, type GoontehConfig, type GoontehCore } from './core'
+import { createGoontehCore, type GoontehConfig, type GoontehCore, type Point } from './core'
 
 /**
  * goonteh — SolidJS adapter.
@@ -76,7 +76,7 @@ export function Grab(props: {
 /** A drop target. `activeClass` is applied while a compatible drag hovers over it. */
 export function Drop(props: {
   accepts: (kind: string, payload: unknown) => boolean
-  onDrop: (payload: unknown, kind: string) => void
+  onDrop: (payload: unknown, kind: string, point: Point) => void
   class?: string
   activeClass?: string
   children: JSX.Element
@@ -87,7 +87,7 @@ export function Drop(props: {
   onMount(() => {
     const handle = core.dropzone(el, {
       accepts: (k, p) => props.accepts(k, p),
-      onDrop: (p, k) => props.onDrop(p, k),
+      onDrop: (p, k, pt) => props.onDrop(p, k, pt),
     })
     setZone(handle)
     onCleanup(() => handle.destroy())

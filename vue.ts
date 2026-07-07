@@ -1,5 +1,5 @@
 import { defineComponent, h, inject, onBeforeUnmount, onMounted, provide, ref, render, type PropType, type VNode } from 'vue'
-import { createGoontehCore, type DropzoneHandle, type GoontehConfig, type GoontehCore } from './core'
+import { createGoontehCore, type DropzoneHandle, type GoontehConfig, type GoontehCore, type Point } from './core'
 
 /**
  * goonteh — Vue 3 adapter.
@@ -79,7 +79,7 @@ export const Drop = defineComponent({
   name: 'GoontehDrop',
   props: {
     accepts: { type: Function as PropType<(kind: string, payload: unknown) => boolean>, required: true },
-    onDrop: { type: Function as PropType<(payload: unknown, kind: string) => void>, required: true },
+    onDrop: { type: Function as PropType<(payload: unknown, kind: string, point: Point) => void>, required: true },
     activeClass: { type: String, default: '' },
   },
   setup(props, { slots }) {
@@ -90,7 +90,7 @@ export const Drop = defineComponent({
       if (!el.value) return
       handle.value = core.dropzone(el.value, {
         accepts: (k, p) => props.accepts(k, p),
-        onDrop: (p, k) => props.onDrop(p, k),
+        onDrop: (p, k, pt) => props.onDrop(p, k, pt),
       })
     })
     onBeforeUnmount(() => handle.value?.destroy())

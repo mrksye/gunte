@@ -10,8 +10,9 @@
  * touch, and a stuck no-drop cursor on some platforms) — put a glove on to actually grip.
  */
 
+export type Point = { x: number; y: number }
 export type Accepts = (kind: string, payload: unknown) => boolean
-export type OnDrop = (payload: unknown, kind: string) => void
+export type OnDrop = (payload: unknown, kind: string, point: Point) => void
 
 export type DraggableOptions = {
   /** Read at drag start; the value handed to the drop target. */
@@ -72,11 +73,18 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
   const subs = new Set<() => void>()
   const notify = () => subs.forEach((f) => f())
 
-  /** Walk up from the element under the pointer to the first registered zone. */
+  /**
+   * Walk up from the element under the pointer to the innermost registered zone that ACCEPTS the
+   * active drag. Accept-aware so nested zones with different `kind`s coexist (a child zone that
+   * rejects the payload is skipped in favour of an accepting ancestor).
+   */
   const zoneAt = (x: number, y: number): { id: number; zone: DropzoneOptions } | null => {
+    if (!active) return null
     let node = document.elementFromPoint(x, y) as Element | null
     while (node) {
-      for (const [id, z] of zones) if (z.el === node) return { id, zone: z }
+      for (const [id, z] of zones) {
+        if (z.el === node && z.accepts(active.kind, active.payload)) return { id, zone: z }
+      }
       node = node.parentElement
     }
     return null
@@ -94,14 +102,13 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
     px = e.clientX
     py = e.clientY
     positionGhost()
-    const hit = zoneAt(px, py)
-    overId = hit && hit.zone.accepts(active.kind, active.payload) ? hit.id : null
+    overId = zoneAt(px, py)?.id ?? null
     notify()
   }
   const onUp = (e: PointerEvent) => {
     if (active) {
       const hit = zoneAt(e.clientX, e.clientY)
-      if (hit && hit.zone.accepts(active.kind, active.payload)) hit.zone.onDrop(active.payload, active.kind)
+      if (hit) hit.zone.onDrop(active.payload, active.kind, { x: e.clientX, y: e.clientY })
     }
     end()
   }

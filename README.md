@@ -161,7 +161,7 @@ const off = engine.onChange(() => targetEl.classList.toggle('ring', zone.isOver(
 `createGoontehCore(config?)` → engine.
 
 - `draggable(el, { payload, kind, ghost?, disabled?, onEnd? })` → `() => void` (cleanup)
-- `dropzone(el, { accepts, onDrop })` → `{ isOver(): boolean, destroy(): void }`
+- `dropzone(el, { accepts, onDrop })` → `{ isOver(): boolean, destroy(): void }` — `onDrop(payload, kind, point)` where `point` is the drop pointer position in client coordinates `{ x, y }`. Zones are accept-aware: the innermost zone whose `accepts` returns true wins, so nested zones with different `kind`s coexist.
 - `dragging(): boolean`
 - `onChange(fn): () => void` — fires on drag start / move / zone change / end
 - `destroy(): void`

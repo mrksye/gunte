@@ -164,9 +164,12 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
 
   return {
     draggable(el, opts) {
+      el.setAttribute('data-goonteh-grab', '')
       const down = (e: PointerEvent) => {
         if (opts.disabled?.()) return
         if (e.pointerType === 'mouse' && e.button !== 0) return
+        const target = e.target as Element | null
+        if (target && target.closest('[data-goonteh-grab]') !== el) return // nested grabs: innermost wins
         const sx = e.clientX
         const sy = e.clientY
         let armed = true
@@ -185,7 +188,10 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
         window.addEventListener('pointerup', disarm)
       }
       el.addEventListener('pointerdown', down)
-      return () => el.removeEventListener('pointerdown', down)
+      return () => {
+        el.removeEventListener('pointerdown', down)
+        el.removeAttribute('data-goonteh-grab')
+      }
     },
     dropzone(el, opts) {
       const id = nextId++

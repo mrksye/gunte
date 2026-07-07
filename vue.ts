@@ -1,21 +1,21 @@
 import { defineComponent, h, inject, onBeforeUnmount, onMounted, provide, ref, render, type PropType, type VNode } from 'vue'
-import { createGunteCore, type GunteConfig, type GunteCore } from './core'
+import { createGoontehCore, type GoontehConfig, type GoontehCore } from './core'
 
 /**
- * gunte — Vue 3 adapter.
+ * goonteh — Vue 3 adapter.
  *
  * Thin Vue bindings over the framework-agnostic core (`./core`): a provider that owns one engine,
  * `Grab` for draggable sources, and `Drop` for targets. `vue` is an optional peer dependency.
  */
-type Ctx = { core: GunteCore; version: { value: number } }
-const KEY = Symbol('gunte')
+type Ctx = { core: GoontehCore; version: { value: number } }
+const KEY = Symbol('goonteh')
 
 /** Root provider. Create it once, above every `Grab`/`Drop`. */
-export const GunteProvider = defineComponent({
-  name: 'GunteProvider',
-  props: { config: { type: Object as PropType<GunteConfig>, default: undefined } },
+export const GoontehProvider = defineComponent({
+  name: 'GoontehProvider',
+  props: { config: { type: Object as PropType<GoontehConfig>, default: undefined } },
   setup(props, { slots }) {
-    const core = createGunteCore(props.config)
+    const core = createGoontehCore(props.config)
     const version = ref(0)
     const unsub = core.onChange(() => {
       version.value++
@@ -31,13 +31,13 @@ export const GunteProvider = defineComponent({
 
 function useCtx(): Ctx {
   const c = inject<Ctx>(KEY)
-  if (!c) throw new Error('gunte: <GunteProvider> is required higher in the tree')
+  if (!c) throw new Error('goonteh: <GoontehProvider> is required higher in the tree')
   return c
 }
 
 /** A draggable source. `ghost` returns a VNode, rendered into a detached element at grab time. */
 export const Grab = defineComponent({
-  name: 'GunteGrab',
+  name: 'GoontehGrab',
   props: {
     payload: { type: null as unknown as PropType<unknown>, default: undefined },
     kind: { type: String, required: true },
@@ -76,7 +76,7 @@ export const Grab = defineComponent({
 
 /** A drop target. `activeClass` is applied while a compatible drag hovers over it. */
 export const Drop = defineComponent({
-  name: 'GunteDrop',
+  name: 'GoontehDrop',
   props: {
     accepts: { type: Function as PropType<(kind: string, payload: unknown) => boolean>, required: true },
     onDrop: { type: Function as PropType<(payload: unknown, kind: string) => void>, required: true },

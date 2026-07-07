@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { Animated, PanResponder, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 
 /**
- * gunte — React Native adapter (experimental).
+ * goonteh — React Native adapter (experimental).
  *
  * React Native has no DOM, so this does NOT reuse the web core (`./core`). Instead it ships its
  * own tiny engine: gestures via the built-in `PanResponder` (no extra deps), hit testing against
@@ -23,11 +23,11 @@ type Ctx = {
   overId: number | null
 }
 
-const GunteContext = createContext<Ctx | null>(null)
+const GoontehContext = createContext<Ctx | null>(null)
 const THRESHOLD = 5
 
 /** Root provider. Create it once, above every `<Grab>`/`<Drop>`; it also renders the ghost overlay. */
-export function GunteProvider({ children }: { children: ReactNode }) {
+export function GoontehProvider({ children }: { children: ReactNode }) {
   const zones = useRef(new Map<number, Zone>())
   const nextId = useRef(1)
   const pos = useRef(new Animated.ValueXY()).current
@@ -81,20 +81,20 @@ export function GunteProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <GunteContext.Provider value={ctx}>
+    <GoontehContext.Provider value={ctx}>
       {children}
       {active ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <Animated.View style={{ position: 'absolute', transform: pos.getTranslateTransform() }}>{active.ghost}</Animated.View>
         </View>
       ) : null}
-    </GunteContext.Provider>
+    </GoontehContext.Provider>
   )
 }
 
 function useCtx(): Ctx {
-  const c = useContext(GunteContext)
-  if (!c) throw new Error('gunte: <GunteProvider> is required higher in the tree')
+  const c = useContext(GoontehContext)
+  if (!c) throw new Error('goonteh: <GoontehProvider> is required higher in the tree')
   return c
 }
 

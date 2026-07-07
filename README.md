@@ -20,11 +20,11 @@ Bare hands slip. Put a glove on. `goonteh` reimplements drag-and-drop on **point
 | Import | What |
 | --- | --- |
 | `goonteh` / `goonteh/core` | The framework-agnostic engine (vanilla TS + DOM). Use directly or to write an adapter. |
-| `goonteh/native` | Vanilla DOM sugar: `gunte().grab(el, …)` / `.drop(el, …)`, with ghost-from-clone. |
-| `goonteh/solid` | SolidJS adapter: `<GunteProvider>`, `<Grab>`, `<Drop>`. |
-| `goonteh/react` | React adapter: `<GunteProvider>`, `<Grab>`, `<Drop>`. |
+| `goonteh/native` | Vanilla DOM sugar: `goonteh().grab(el, …)` / `.drop(el, …)`, with ghost-from-clone. |
+| `goonteh/solid` | SolidJS adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`. |
+| `goonteh/react` | React adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`. |
 | `goonteh/react-native` | React Native adapter (experimental): its own PanResponder engine. |
-| `goonteh/vue` | Vue 3 adapter: `GunteProvider`, `Grab`, `Drop`. |
+| `goonteh/vue` | Vue 3 adapter: `GoontehProvider`, `Grab`, `Drop`. |
 
 Every framework is an **optional** peer dependency — the core needs nothing. Adapters are ~50 lines each; the drag mechanics live entirely in the core.
 
@@ -36,14 +36,14 @@ npm i goonteh
 
 ## SolidJS
 
-Wrap your app once with `<GunteProvider>`, then use `<Grab>` for sources and `<Drop>` for targets.
+Wrap your app once with `<GoontehProvider>`, then use `<Grab>` for sources and `<Drop>` for targets.
 
 ```tsx
-import { GunteProvider, Grab, Drop } from 'goonteh/solid'
+import { GoontehProvider, Grab, Drop } from 'goonteh/solid'
 
 function App() {
   return (
-    <GunteProvider>
+    <GoontehProvider>
       <Grab payload={{ color: 'red' }} kind="swatch" ghost={() => <div class="ghost">red</div>}>
         <button>red</button>
       </Grab>
@@ -56,7 +56,7 @@ function App() {
       >
         drop here
       </Drop>
-    </GunteProvider>
+    </GoontehProvider>
   )
 }
 ```
@@ -66,16 +66,16 @@ A drag starts only after the pointer moves past a ~5px threshold, so a plain cli
 ## React
 
 ```tsx
-import { GunteProvider, Grab, Drop } from 'goonteh/react'
+import { GoontehProvider, Grab, Drop } from 'goonteh/react'
 
-<GunteProvider>
+<GoontehProvider>
   <Grab payload={{ color: 'red' }} kind="swatch" ghost={() => <div className="ghost">red</div>}>
     <button>red</button>
   </Grab>
   <Drop accepts={(k) => k === 'swatch'} onDrop={(p) => console.log(p)} activeClass="ring">
     drop here
   </Drop>
-</GunteProvider>
+</GoontehProvider>
 ```
 
 ## Vue
@@ -83,18 +83,18 @@ import { GunteProvider, Grab, Drop } from 'goonteh/react'
 ```vue
 <script setup lang="ts">
 import { h } from 'vue'
-import { GunteProvider, Grab, Drop } from 'goonteh/vue'
+import { GoontehProvider, Grab, Drop } from 'goonteh/vue'
 </script>
 
 <template>
-  <GunteProvider>
+  <GoontehProvider>
     <Grab :payload="{ color: 'red' }" kind="swatch" :ghost="() => h('div', { class: 'ghost' }, 'red')">
       <button>red</button>
     </Grab>
     <Drop :accepts="(k) => k === 'swatch'" :onDrop="(p) => console.log(p)" active-class="ring">
       drop here
     </Drop>
-  </GunteProvider>
+  </GoontehProvider>
 </template>
 ```
 
@@ -104,24 +104,24 @@ React Native has no DOM, so this adapter ships its own PanResponder-based engine
 
 ```tsx
 import { Text, View } from 'react-native'
-import { GunteProvider, Grab, Drop } from 'goonteh/react-native'
+import { GoontehProvider, Grab, Drop } from 'goonteh/react-native'
 
-<GunteProvider>
+<GoontehProvider>
   <Grab payload={{ color: 'red' }} kind="swatch" ghost={() => <Text>red</Text>}>
     <View style={styles.chip}><Text>red</Text></View>
   </Grab>
   <Drop accepts={(k) => k === 'swatch'} onDrop={(p) => console.log(p)} activeStyle={styles.over}>
     <View style={styles.zone}><Text>drop here</Text></View>
   </Drop>
-</GunteProvider>
+</GoontehProvider>
 ```
 
 ## Native (vanilla DOM)
 
 ```ts
-import { gunte } from 'goonteh/native'
+import { goonteh } from 'goonteh/native'
 
-const g = gunte()
+const g = goonteh()
 g.grab(sourceEl, { payload: { color: 'red' }, kind: 'swatch' }) // ghost defaults to a clone
 g.drop(targetEl, { accepts: (k) => k === 'swatch', onDrop: (p) => console.log(p) })
 ```
@@ -131,12 +131,12 @@ g.drop(targetEl, { accepts: (k) => k === 'swatch', onDrop: (p) => console.log(p)
 The core is imperative and framework-free. Wire it to your own elements.
 
 ```ts
-import { createGunteCore } from 'goonteh'
+import { createGoontehCore } from 'goonteh'
 
-const gunte = createGunteCore()
+const engine = createGoontehCore()
 
 // a draggable
-gunte.draggable(sourceEl, {
+engine.draggable(sourceEl, {
   payload: () => ({ color: 'red' }),
   kind: 'swatch',
   ghost: () => {
@@ -147,18 +147,18 @@ gunte.draggable(sourceEl, {
 })
 
 // a drop target
-const zone = gunte.dropzone(targetEl, {
+const zone = engine.dropzone(targetEl, {
   accepts: (kind) => kind === 'swatch',
   onDrop: (payload) => console.log('dropped', payload),
 })
 
 // reflect state however you like
-const off = gunte.onChange(() => targetEl.classList.toggle('ring', zone.isOver()))
+const off = engine.onChange(() => targetEl.classList.toggle('ring', zone.isOver()))
 ```
 
 ## API (core)
 
-`createGunteCore(config?)` → engine.
+`createGoontehCore(config?)` → engine.
 
 - `draggable(el, { payload, kind, ghost?, disabled?, onEnd? })` → `() => void` (cleanup)
 - `dropzone(el, { accepts, onDrop })` → `{ isOver(): boolean, destroy(): void }`
@@ -172,7 +172,7 @@ Zones may nest; the innermost matching zone under the pointer wins. The ghost is
 
 ## API (SolidJS adapter)
 
-- `<GunteProvider config?>` — owns one engine; place above every `<Grab>`/`<Drop>`.
+- `<GoontehProvider config?>` — owns one engine; place above every `<Grab>`/`<Drop>`.
 - `<Grab payload kind ghost disabled? class?>` — `ghost` is a `() => JSX.Element` snapshot taken at grab time.
 - `<Drop accepts onDrop class? activeClass?>` — `activeClass` is applied while a compatible drag hovers.
 
@@ -183,7 +183,7 @@ Zones may nest; the innermost matching zone under the pointer wins. The ghost is
 
 ## Status
 
-Early (0.1.x) and lightly tested — expect rough edges. Ships TypeScript/TSX source; the core is plain TS and the framework adapters are compiled by your framework-aware bundler. A prebuilt `dist` is planned before a stable release. The React Native adapter is **experimental**.
+Early (0.2.x) and lightly tested — expect rough edges. Ships TypeScript/TSX source; the core is plain TS and the framework adapters are compiled by your framework-aware bundler. A prebuilt `dist` is planned before a stable release. The React Native adapter is **experimental**.
 
 ## Contributing
 

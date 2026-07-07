@@ -1,13 +1,13 @@
 /**
- * gunte core — a framework-agnostic pointer drag-and-drop engine.
+ * goonteh core — a framework-agnostic pointer drag-and-drop engine.
  *
  * Pure TypeScript + DOM, no framework. It tracks a drag from pointer-down (past a small
  * threshold) through pointer-up, hit-tests registered drop zones with `elementFromPoint`,
  * manages an optional ghost element that follows the pointer, and drives the body cursor.
  * Framework adapters (see `./solid`) wrap this; you can also use it directly with vanilla JS.
  *
- * The name is Japanese for "work gloves" (軍手): native HTML5 DnD slips (no touch, and a
- * stuck no-drop cursor on some platforms) — put a glove on to actually grip.
+ * The name respells 軍手 (gunte), Japanese for "work gloves": native HTML5 DnD slips (no
+ * touch, and a stuck no-drop cursor on some platforms) — put a glove on to actually grip.
  */
 
 export type Accepts = (kind: string, payload: unknown) => boolean
@@ -37,7 +37,7 @@ export type DropzoneHandle = {
   destroy: () => void
 }
 
-export type GunteConfig = {
+export type GoontehConfig = {
   /** Pixels the pointer must travel before a drag starts. Default 5. */
   threshold?: number
   /** Body cursor while dragging. Default 'grabbing'. */
@@ -46,7 +46,7 @@ export type GunteConfig = {
   ghostOffset?: { x: number; y: number }
 }
 
-export type GunteCore = {
+export type GoontehCore = {
   draggable(el: HTMLElement, opts: DraggableOptions): () => void
   dropzone(el: HTMLElement, opts: DropzoneOptions): DropzoneHandle
   dragging: () => boolean
@@ -58,7 +58,7 @@ export type GunteCore = {
 type Active = { payload: unknown; kind: string; ghost: HTMLElement | null; onEnd?: () => void }
 
 /** Create an engine instance. One per drag context (e.g. one per app). */
-export function createGunteCore(config: GunteConfig = {}): GunteCore {
+export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
   const threshold = config.threshold ?? 5
   const cursor = config.cursor ?? 'grabbing'
   const offset = config.ghostOffset ?? { x: -40, y: -60 }

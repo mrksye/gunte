@@ -1,22 +1,22 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { createGunteCore, type GunteConfig, type GunteCore } from './core'
+import { createGoontehCore, type GoontehConfig, type GoontehCore } from './core'
 
 /**
- * gunte — React adapter.
+ * goonteh — React adapter.
  *
  * Thin React bindings over the framework-agnostic core (`./core`): a provider that owns one
  * engine, `<Grab>` for draggable sources, and `<Drop>` for targets. Latest props are read through
  * refs so the stable core closures always see current values. `react` / `react-dom` are optional
  * peer dependencies.
  */
-type Ctx = { core: GunteCore; version: number }
-const GunteContext = createContext<Ctx | null>(null)
+type Ctx = { core: GoontehCore; version: number }
+const GoontehContext = createContext<Ctx | null>(null)
 
 /** Root provider. Create it once, above every `<Grab>`/`<Drop>`. */
-export function GunteProvider({ children, config }: { children: ReactNode; config?: GunteConfig }) {
-  const coreRef = useRef<GunteCore>()
-  if (!coreRef.current) coreRef.current = createGunteCore(config)
+export function GoontehProvider({ children, config }: { children: ReactNode; config?: GoontehConfig }) {
+  const coreRef = useRef<GoontehCore>()
+  if (!coreRef.current) coreRef.current = createGoontehCore(config)
   const core = coreRef.current
   const [version, setVersion] = useState(0)
   useEffect(() => {
@@ -26,12 +26,12 @@ export function GunteProvider({ children, config }: { children: ReactNode; confi
       core.destroy()
     }
   }, [core])
-  return <GunteContext.Provider value={{ core, version }}>{children}</GunteContext.Provider>
+  return <GoontehContext.Provider value={{ core, version }}>{children}</GoontehContext.Provider>
 }
 
 function useCtx(): Ctx {
-  const c = useContext(GunteContext)
-  if (!c) throw new Error('gunte: <GunteProvider> is required higher in the tree')
+  const c = useContext(GoontehContext)
+  if (!c) throw new Error('goonteh: <GoontehProvider> is required higher in the tree')
   return c
 }
 

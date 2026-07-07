@@ -1,7 +1,7 @@
-import { createGunteCore, type DropzoneHandle, type DropzoneOptions, type GunteConfig } from './core'
+import { createGoontehCore, type DropzoneHandle, type DropzoneOptions, type GoontehConfig } from './core'
 
 /**
- * gunte — native (vanilla DOM) adapter.
+ * goonteh — native (vanilla DOM) adapter.
  *
  * A friendly, framework-free wrapper over the core for plain HTML/JS: `grab(el, ...)` and
  * `drop(el, ...)` bound to one engine, plus ghost sugar (a factory, an HTML string, or a clone of
@@ -17,7 +17,7 @@ export type NativeGrabOptions = {
   disabled?: () => boolean
 }
 
-export type Gunte = {
+export type Goonteh = {
   grab(el: HTMLElement, opts: NativeGrabOptions): () => void
   drop(el: HTMLElement, opts: DropzoneOptions): DropzoneHandle
   dragging(): boolean
@@ -25,9 +25,9 @@ export type Gunte = {
   destroy(): void
 }
 
-/** Create a DOM-native gunte instance (no framework). */
-export function gunte(config?: GunteConfig): Gunte {
-  const core = createGunteCore(config)
+/** Create a DOM-native goonteh instance (no framework). */
+export function goonteh(config?: GoontehConfig): Goonteh {
+  const core = createGoontehCore(config)
   return {
     grab(el, opts) {
       return core.draggable(el, {

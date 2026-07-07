@@ -1,32 +1,32 @@
 import { createContext, createSignal, onCleanup, onMount, useContext, type Accessor, type JSX } from 'solid-js'
 import { render } from 'solid-js/web'
-import { createGunteCore, type GunteConfig, type GunteCore } from './core'
+import { createGoontehCore, type GoontehConfig, type GoontehCore } from './core'
 
 /**
- * gunte — SolidJS adapter.
+ * goonteh — SolidJS adapter.
  *
  * Thin Solid bindings over the framework-agnostic core (`./core`): a provider that owns one
  * engine, `<Grab>` for draggable sources, and `<Drop>` for targets. The core handles all pointer
  * mechanics and the ghost; this file only wires refs and reflects state into Solid reactivity.
  */
-type Ctx = { core: GunteCore; version: Accessor<number> }
-const GunteContext = createContext<Ctx>()
+type Ctx = { core: GoontehCore; version: Accessor<number> }
+const GoontehContext = createContext<Ctx>()
 
 /** Root provider. Create it once, above every `<Grab>`/`<Drop>`. */
-export function GunteProvider(props: { children: JSX.Element; config?: GunteConfig }): JSX.Element {
-  const core = createGunteCore(props.config)
+export function GoontehProvider(props: { children: JSX.Element; config?: GoontehConfig }): JSX.Element {
+  const core = createGoontehCore(props.config)
   const [version, setVersion] = createSignal(0)
   const unsub = core.onChange(() => setVersion((v) => v + 1))
   onCleanup(() => {
     unsub()
     core.destroy()
   })
-  return <GunteContext.Provider value={{ core, version }}>{props.children}</GunteContext.Provider>
+  return <GoontehContext.Provider value={{ core, version }}>{props.children}</GoontehContext.Provider>
 }
 
 function useCtx(): Ctx {
-  const c = useContext(GunteContext)
-  if (!c) throw new Error('gunte: <GunteProvider> is required higher in the tree')
+  const c = useContext(GoontehContext)
+  if (!c) throw new Error('goonteh: <GoontehProvider> is required higher in the tree')
   return c
 }
 

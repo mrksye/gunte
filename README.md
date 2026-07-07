@@ -1,13 +1,13 @@
-# gunte 🧤
+# goonteh 🧤
 
 Tiny **pointer-based** drag-and-drop that works on **touch** and never shows the **no-drop (🚫) cursor**.
 
-`gunte` (軍手, Japanese for *work gloves*) exists because the native HTML5 Drag and Drop API has two dealbreakers:
+`goonteh` (軍手, Japanese for *work gloves*) exists because the native HTML5 Drag and Drop API has two dealbreakers:
 
 1. **It doesn't work on touch.** `draggable` / `dragstart` never fire on phones and tablets.
 2. **Its cursor is not yours.** On some platforms (notably Chromium on Linux) the "no-drop" cursor sticks even over a valid drop target, and CSS can't override it.
 
-Bare hands slip. Put a glove on. `gunte` reimplements drag-and-drop on **pointer events**, so it works with mouse, touch, and pen alike, and the cursor and drop highlight are **fully controlled with CSS** — no forbidden cursor, ever.
+Bare hands slip. Put a glove on. `goonteh` reimplements drag-and-drop on **pointer events**, so it works with mouse, touch, and pen alike, and the cursor and drop highlight are **fully controlled with CSS** — no forbidden cursor, ever.
 
 - 🖐️ Mouse, touch, and pen (pointer events)
 - 🚫 No native no-drop cursor — you own the look
@@ -19,19 +19,19 @@ Bare hands slip. Put a glove on. `gunte` reimplements drag-and-drop on **pointer
 
 | Import | What |
 | --- | --- |
-| `gunte` / `gunte/core` | The framework-agnostic engine (vanilla TS + DOM). Use directly or to write an adapter. |
-| `gunte/native` | Vanilla DOM sugar: `gunte().grab(el, …)` / `.drop(el, …)`, with ghost-from-clone. |
-| `gunte/solid` | SolidJS adapter: `<GunteProvider>`, `<Grab>`, `<Drop>`. |
-| `gunte/react` | React adapter: `<GunteProvider>`, `<Grab>`, `<Drop>`. |
-| `gunte/react-native` | React Native adapter (experimental): its own PanResponder engine. |
-| `gunte/vue` | Vue 3 adapter: `GunteProvider`, `Grab`, `Drop`. |
+| `goonteh` / `goonteh/core` | The framework-agnostic engine (vanilla TS + DOM). Use directly or to write an adapter. |
+| `goonteh/native` | Vanilla DOM sugar: `gunte().grab(el, …)` / `.drop(el, …)`, with ghost-from-clone. |
+| `goonteh/solid` | SolidJS adapter: `<GunteProvider>`, `<Grab>`, `<Drop>`. |
+| `goonteh/react` | React adapter: `<GunteProvider>`, `<Grab>`, `<Drop>`. |
+| `goonteh/react-native` | React Native adapter (experimental): its own PanResponder engine. |
+| `goonteh/vue` | Vue 3 adapter: `GunteProvider`, `Grab`, `Drop`. |
 
 Every framework is an **optional** peer dependency — the core needs nothing. Adapters are ~50 lines each; the drag mechanics live entirely in the core.
 
 ## Install
 
 ```sh
-npm i gunte
+npm i goonteh
 ```
 
 ## SolidJS
@@ -39,7 +39,7 @@ npm i gunte
 Wrap your app once with `<GunteProvider>`, then use `<Grab>` for sources and `<Drop>` for targets.
 
 ```tsx
-import { GunteProvider, Grab, Drop } from 'gunte/solid'
+import { GunteProvider, Grab, Drop } from 'goonteh/solid'
 
 function App() {
   return (
@@ -66,7 +66,7 @@ A drag starts only after the pointer moves past a ~5px threshold, so a plain cli
 ## React
 
 ```tsx
-import { GunteProvider, Grab, Drop } from 'gunte/react'
+import { GunteProvider, Grab, Drop } from 'goonteh/react'
 
 <GunteProvider>
   <Grab payload={{ color: 'red' }} kind="swatch" ghost={() => <div className="ghost">red</div>}>
@@ -83,7 +83,7 @@ import { GunteProvider, Grab, Drop } from 'gunte/react'
 ```vue
 <script setup lang="ts">
 import { h } from 'vue'
-import { GunteProvider, Grab, Drop } from 'gunte/vue'
+import { GunteProvider, Grab, Drop } from 'goonteh/vue'
 </script>
 
 <template>
@@ -104,7 +104,7 @@ React Native has no DOM, so this adapter ships its own PanResponder-based engine
 
 ```tsx
 import { Text, View } from 'react-native'
-import { GunteProvider, Grab, Drop } from 'gunte/react-native'
+import { GunteProvider, Grab, Drop } from 'goonteh/react-native'
 
 <GunteProvider>
   <Grab payload={{ color: 'red' }} kind="swatch" ghost={() => <Text>red</Text>}>
@@ -119,7 +119,7 @@ import { GunteProvider, Grab, Drop } from 'gunte/react-native'
 ## Native (vanilla DOM)
 
 ```ts
-import { gunte } from 'gunte/native'
+import { gunte } from 'goonteh/native'
 
 const g = gunte()
 g.grab(sourceEl, { payload: { color: 'red' }, kind: 'swatch' }) // ghost defaults to a clone
@@ -131,7 +131,7 @@ g.drop(targetEl, { accepts: (k) => k === 'swatch', onDrop: (p) => console.log(p)
 The core is imperative and framework-free. Wire it to your own elements.
 
 ```ts
-import { createGunteCore } from 'gunte'
+import { createGunteCore } from 'goonteh'
 
 const gunte = createGunteCore()
 

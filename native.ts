@@ -1,4 +1,4 @@
-import { createGoontehCore, type DropzoneHandle, type DropzoneOptions, type GoontehConfig } from './core'
+import { createGoontehCore, type DropzoneHandle, type DropzoneOptions, type GoontehConfig, type Point } from './core'
 
 /**
  * goonteh — native (vanilla DOM) adapter.
@@ -15,12 +15,18 @@ export type NativeGrabOptions = {
   /** Ghost: a factory, an HTML string, or 'clone' to clone the dragged element. Default 'clone'. */
   ghost?: NativeGhost
   disabled?: () => boolean
+  /** 'hole' (blank gap, no reflow) or 'collapse' (siblings close up); omit to leave in place. */
+  lift?: 'hole' | 'collapse'
 }
 
 export type Goonteh = {
   grab(el: HTMLElement, opts: NativeGrabOptions): () => void
   drop(el: HTMLElement, opts: DropzoneOptions): DropzoneHandle
   dragging(): boolean
+  /** The active drag (kind + payload) while dragging, else undefined. */
+  active(): { kind: string; payload: unknown } | undefined
+  /** The live pointer position while dragging, else undefined. */
+  point(): Point | undefined
   onChange(fn: () => void): () => void
   destroy(): void
 }
@@ -34,11 +40,14 @@ export function goonteh(config?: GoontehConfig): Goonteh {
         payload: () => opts.payload,
         kind: opts.kind,
         disabled: opts.disabled,
+        lift: opts.lift,
         ghost: () => makeGhost(el, opts.ghost),
       })
     },
     drop: (el, opts) => core.dropzone(el, opts),
     dragging: () => core.dragging(),
+    active: () => core.active(),
+    point: () => core.point(),
     onChange: (fn) => core.onChange(fn),
     destroy: () => core.destroy(),
   }

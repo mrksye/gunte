@@ -30,6 +30,24 @@ function useCtx(): Ctx {
   return c
 }
 
+/** The live drag state (kind + payload) while dragging, else undefined. */
+export type ActiveDrag = { kind: string; payload: unknown } | undefined
+
+/**
+ * Reactive read-side of the engine. Each accessor touches `version` (bumped on every drag change)
+ * then reads the core, so it re-runs inside any Solid tracking scope. Use it to react to what is
+ * being dragged (`active`) and where (`point`) — e.g. to show a reorder-vs-combine affordance.
+ */
+export function useGoonteh(): {
+  dragging: Accessor<boolean>
+  active: Accessor<ActiveDrag>
+  point: Accessor<Point | undefined>
+} {
+  const { core, version } = useCtx()
+  const tracked = <T,>(read: () => T): Accessor<T> => () => (version(), read())
+  return { dragging: tracked(core.dragging), active: tracked(core.active), point: tracked(core.point) }
+}
+
 /**
  * A draggable source. `ghost` is rendered to a detached element at grab time and handed to the
  * core (which mounts/positions/removes it); the Solid root is disposed when the drag ends.
@@ -39,17 +57,21 @@ export function Grab(props: {
   kind: string
   ghost: () => JSX.Element
   disabled?: boolean
+  /** How the source looks while dragged: 'hole' (blank gap, no reflow) or 'collapse' (siblings close
+   *  up). Omit to leave it in place (copy-style drag). See DraggableOptions.lift. */
+  lift?: 'hole' | 'collapse'
   class?: string
   children: JSX.Element
 }): JSX.Element {
   const { core } = useCtx()
   let el!: HTMLDivElement
   onMount(() => {
-    let dispose: (() => void) | null = null
+    let dispose: (() => void) | undefined
     const cleanup = core.draggable(el, {
       payload: () => props.payload,
       kind: props.kind,
       disabled: () => !!props.disabled,
+      lift: props.lift,
       ghost: () => {
         const container = document.createElement('div')
         dispose = render(() => props.ghost(), container)
@@ -57,7 +79,7 @@ export function Grab(props: {
       },
       onEnd: () => {
         dispose?.()
-        dispose = null
+        dispose = undefined
       },
     })
     onCleanup(() => {
@@ -82,7 +104,7 @@ export function Drop(props: {
 }): JSX.Element {
   const { core, version } = useCtx()
   let el!: HTMLDivElement
-  const [zone, setZone] = createSignal<{ isOver: () => boolean } | null>(null)
+  const [zone, setZone] = createSignal<{ isOver: () => boolean } | undefined>()
   onMount(() => {
     const handle = core.dropzone(el, {
       accepts: (k, p) => props.accepts(k, p),

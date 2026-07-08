@@ -23,6 +23,12 @@ export type DraggableOptions = {
   ghost?: () => HTMLElement
   /** When it returns true, pointer-down does not start a drag. */
   disabled?: () => boolean
+  /** How the source element behaves while it is being dragged. Restored when the drag ends.
+   *  - `'hole'`: hidden in place (visibility:hidden) — the box keeps its space, so a blank hole is
+   *    left and siblings do NOT reflow. The item looks genuinely picked up. Recommended default.
+   *  - `'collapse'`: removed from layout (display:none) — siblings close the gap ("normal" reflow).
+   *  Omit to leave the source fully visible in place (a copy-style drag, e.g. a palette/tray). */
+  lift?: 'hole' | 'collapse'
   /** Called after the drag ends (dropped or cancelled); use it to dispose a rendered ghost. */
   onEnd?: () => void
 }
@@ -51,12 +57,34 @@ export type GoontehCore = {
   draggable(el: HTMLElement, opts: DraggableOptions): () => void
   dropzone(el: HTMLElement, opts: DropzoneOptions): DropzoneHandle
   dragging: () => boolean
+  /** The active drag's descriptor (kind + payload) while dragging, else undefined. */
+  active: () => { kind: string; payload: unknown } | undefined
+  /** The live pointer position while dragging, else undefined. Lets zones compute sub-position (e.g. a
+   *  card's centre vs edge) to show reorder-vs-combine affordances during hover. */
+  point: () => Point | undefined
   /** Subscribe to state changes (drag start/move/zone change/end). Returns an unsubscribe. */
   onChange(fn: () => void): () => void
   destroy(): void
 }
 
-type Active = { payload: unknown; kind: string; ghost: HTMLElement | null; onEnd?: () => void }
+type Active = { payload: unknown; kind: string; ghost: HTMLElement | undefined; unlift?: () => void; onEnd?: () => void }
+
+/** The style override each lift mode applies to the source while it is dragged (data, not branches). */
+const LIFT_STYLE: Record<NonNullable<DraggableOptions['lift']>, { prop: 'visibility' | 'display'; value: string }> = {
+  hole: { prop: 'visibility', value: 'hidden' },
+  collapse: { prop: 'display', value: 'none' },
+}
+
+/** Apply a lift to the source, returning a thunk that restores the prior style (or undefined = no lift). */
+const applyLift = (el: HTMLElement, mode: DraggableOptions['lift']): (() => void) | undefined => {
+  if (!mode) return undefined
+  const { prop, value } = LIFT_STYLE[mode]
+  const prev = el.style[prop]
+  el.style[prop] = value
+  return () => {
+    el.style[prop] = prev
+  }
+}
 
 /** Create an engine instance. One per drag context (e.g. one per app). */
 export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
@@ -64,10 +92,10 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
   const cursor = config.cursor ?? 'grabbing'
   const offset = config.ghostOffset ?? { x: -40, y: -60 }
 
-  let active: Active | null = null
+  let active: Active | undefined
   let px = 0
   let py = 0
-  let overId: number | null = null
+  let overId: number | undefined
   const zones = new Map<number, { el: HTMLElement } & DropzoneOptions>()
   let nextId = 1
   const subs = new Set<() => void>()
@@ -78,8 +106,8 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
    * active drag. Accept-aware so nested zones with different `kind`s coexist (a child zone that
    * rejects the payload is skipped in favour of an accepting ancestor).
    */
-  const zoneAt = (x: number, y: number): { id: number; zone: DropzoneOptions } | null => {
-    if (!active) return null
+  const zoneAt = (x: number, y: number): { id: number; zone: DropzoneOptions } | undefined => {
+    if (!active) return undefined
     let node = document.elementFromPoint(x, y) as Element | null
     while (node) {
       for (const [id, z] of zones) {
@@ -87,7 +115,7 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
       }
       node = node.parentElement
     }
-    return null
+    return undefined
   }
 
   const positionGhost = () => {
@@ -102,7 +130,7 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
     px = e.clientX
     py = e.clientY
     positionGhost()
-    overId = zoneAt(px, py)?.id ?? null
+    overId = zoneAt(px, py)?.id
     notify()
   }
   const onUp = (e: PointerEvent) => {
@@ -132,22 +160,23 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
   function end() {
     if (!active) return
     const a = active
-    active = null
-    overId = null
+    active = undefined
+    overId = undefined
     unlisten()
     document.body.style.cursor = ''
     document.body.style.userSelect = ''
     if (a.ghost) a.ghost.remove()
+    a.unlift?.()
     a.onEnd?.()
     notify()
   }
 
-  const begin = (opts: DraggableOptions, x: number, y: number) => {
+  const begin = (el: HTMLElement, opts: DraggableOptions, x: number, y: number) => {
     px = x
     py = y
-    overId = null
-    const ghost = opts.ghost?.() ?? null
-    active = { payload: opts.payload(), kind: opts.kind, ghost, onEnd: opts.onEnd }
+    overId = undefined
+    const ghost = opts.ghost?.()
+    active = { payload: opts.payload(), kind: opts.kind, ghost, unlift: applyLift(el, opts.lift), onEnd: opts.onEnd }
     if (ghost) {
       ghost.style.position = 'fixed'
       ghost.style.pointerEvents = 'none'
@@ -177,7 +206,7 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
           if (!armed) return
           if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < threshold) return
           disarm()
-          begin(opts, ev.clientX, ev.clientY)
+          begin(el, opts, ev.clientX, ev.clientY)
         }
         const disarm = () => {
           armed = false
@@ -203,7 +232,9 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
         },
       }
     },
-    dragging: () => active !== null,
+    dragging: () => active !== undefined,
+    active: () => (active ? { kind: active.kind, payload: active.payload } : undefined),
+    point: () => (active ? { x: px, y: py } : undefined),
     onChange: (fn) => {
       subs.add(fn)
       return () => {

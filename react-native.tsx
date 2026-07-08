@@ -11,7 +11,7 @@ import { Animated, PanResponder, StyleSheet, View, type StyleProp, type ViewStyl
  * `measureInWindow`. `react` and `react-native` are optional peer dependencies.
  */
 type Rect = { x: number; y: number; w: number; h: number }
-type Zone = { rect: Rect | null; accepts: (kind: string, payload: unknown) => boolean; onDrop: (payload: unknown, kind: string, point: { x: number; y: number }) => void }
+type Zone = { rect: Rect | undefined; accepts: (kind: string, payload: unknown) => boolean; onDrop: (payload: unknown, kind: string, point: { x: number; y: number }) => void }
 type Active = { payload: unknown; kind: string; ghost: ReactNode }
 
 type Ctx = {
@@ -20,7 +20,8 @@ type Ctx = {
   begin: (a: Active, x: number, y: number) => void
   move: (x: number, y: number) => void
   end: () => void
-  overId: number | null
+  overId: number | undefined
+  active: Active | undefined
 }
 
 const GoontehContext = createContext<Ctx | null>(null)
@@ -32,16 +33,16 @@ export function GoontehProvider({ children }: { children: ReactNode }) {
   const nextId = useRef(1)
   const pos = useRef(new Animated.ValueXY()).current
   const point = useRef({ x: 0, y: 0 })
-  const activeRef = useRef<Active | null>(null)
-  const [active, setActive] = useState<Active | null>(null)
-  const [overId, setOverId] = useState<number | null>(null)
+  const activeRef = useRef<Active | undefined>(undefined)
+  const [active, setActive] = useState<Active | undefined>(undefined)
+  const [overId, setOverId] = useState<number | undefined>(undefined)
 
-  const hit = (x: number, y: number): { id: number; zone: Zone } | null => {
+  const hit = (x: number, y: number): { id: number; zone: Zone } | undefined => {
     for (const [id, zone] of zones.current) {
       const r = zone.rect
       if (r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return { id, zone }
     }
-    return null
+    return undefined
   }
 
   const ctx: Ctx = {
@@ -58,14 +59,14 @@ export function GoontehProvider({ children }: { children: ReactNode }) {
       point.current = { x, y }
       pos.setValue({ x, y })
       setActive(a)
-      setOverId(null)
+      setOverId(undefined)
     },
     move: (x, y) => {
       point.current = { x, y }
       pos.setValue({ x, y })
       const a = activeRef.current
       const h = hit(x, y)
-      setOverId(h && a && h.zone.accepts(a.kind, a.payload) ? h.id : null)
+      setOverId(h && a && h.zone.accepts(a.kind, a.payload) ? h.id : undefined)
     },
     end: () => {
       const a = activeRef.current
@@ -73,11 +74,12 @@ export function GoontehProvider({ children }: { children: ReactNode }) {
         const h = hit(point.current.x, point.current.y)
         if (h && h.zone.accepts(a.kind, a.payload)) h.zone.onDrop(a.payload, a.kind, { x: point.current.x, y: point.current.y })
       }
-      activeRef.current = null
-      setActive(null)
-      setOverId(null)
+      activeRef.current = undefined
+      setActive(undefined)
+      setOverId(undefined)
     },
     overId,
+    active,
   }
 
   return (
@@ -98,12 +100,25 @@ function useCtx(): Ctx {
   return c
 }
 
+export type ActiveDrag = { kind: string; payload: unknown } | undefined
+
+/** Live drag state. (This engine does not surface a reactive `point`; use a Drop's `activeStyle`.) */
+export function useGoonteh(): { dragging: boolean; active: ActiveDrag } {
+  const { active } = useCtx()
+  return { dragging: !!active, active: active ? { kind: active.kind, payload: active.payload } : undefined }
+}
+
+/** The style a lifted source takes while dragged: a blank hole (kept space) or collapsed away. */
+const liftStyle = (lift: 'hole' | 'collapse' | undefined, dragging: boolean): ViewStyle | undefined =>
+  dragging && lift ? (lift === 'collapse' ? { display: 'none' } : { opacity: 0 }) : undefined
+
 /** A draggable source. A drag begins after the touch moves past a small threshold. */
 export function Grab({
   payload,
   kind,
   ghost,
   disabled,
+  lift,
   style,
   children,
 }: {
@@ -111,6 +126,8 @@ export function Grab({
   kind: string
   ghost: () => ReactNode
   disabled?: boolean
+  /** 'hole' (blank gap via opacity, keeps space) or 'collapse' (removed from layout). */
+  lift?: 'hole' | 'collapse'
   style?: StyleProp<ViewStyle>
   children: ReactNode
 }) {
@@ -118,6 +135,7 @@ export function Grab({
   const latest = useRef({ payload, ghost, disabled })
   latest.current = { payload, ghost, disabled }
   const started = useRef(false)
+  const [dragging, setDragging] = useState(false)
 
   const responder = useMemo(
     () =>
@@ -132,6 +150,7 @@ export function Grab({
           if (!started.current) {
             if (Math.hypot(g.dx, g.dy) < THRESHOLD) return
             started.current = true
+            setDragging(true)
             ctx.begin({ payload: latest.current.payload, kind, ghost: latest.current.ghost() }, g.moveX, g.moveY)
           } else {
             ctx.move(g.moveX, g.moveY)
@@ -140,17 +159,19 @@ export function Grab({
         onPanResponderRelease: () => {
           if (started.current) ctx.end()
           started.current = false
+          setDragging(false)
         },
         onPanResponderTerminate: () => {
           if (started.current) ctx.end()
           started.current = false
+          setDragging(false)
         },
       }),
     [ctx, kind],
   )
 
   return (
-    <View style={style} {...responder.panHandlers}>
+    <View style={[style, liftStyle(lift, dragging)]} {...responder.panHandlers}>
       {children}
     </View>
   )
@@ -172,15 +193,15 @@ export function Drop({
 }) {
   const ctx = useCtx()
   const viewRef = useRef<View>(null)
-  const zone = useRef<Zone>({ rect: null, accepts, onDrop })
+  const zone = useRef<Zone>({ rect: undefined, accepts, onDrop })
   zone.current.accepts = accepts
   zone.current.onDrop = onDrop
-  const id = useRef<number | null>(null)
+  const id = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     id.current = ctx.register(zone.current)
     return () => {
-      if (id.current !== null) ctx.unregister(id.current)
+      if (id.current !== undefined) ctx.unregister(id.current)
     }
   }, [ctx])
 
@@ -189,7 +210,7 @@ export function Drop({
       zone.current.rect = { x, y, w, h }
     })
   }
-  const over = id.current !== null && ctx.overId === id.current
+  const over = id.current !== undefined && ctx.overId === id.current
 
   return (
     <View ref={viewRef} onLayout={measure} style={[style, over ? activeStyle : null]}>

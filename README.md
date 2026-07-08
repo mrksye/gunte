@@ -13,6 +13,8 @@ Bare hands slip. Put a glove on. `goonteh` reimplements drag-and-drop on **point
 - 🚫 No native no-drop cursor — you own the look
 - 📦 Payloads are plain JS values tagged by a `kind` string (no `dataTransfer` / MIME)
 - 👻 Custom drag ghost that follows the pointer
+- 🕳️ **Lift** the source as you drag — leave a blank hole, or collapse the gap
+- 🔎 **Read the live drag** (`active` / `point`) to drive your own affordances (reorder vs. combine…)
 - 🧩 **Framework-agnostic core** + thin adapters — zero deps beyond your framework
 
 ## Packages / entry points
@@ -22,9 +24,10 @@ Bare hands slip. Put a glove on. `goonteh` reimplements drag-and-drop on **point
 | `goonteh` / `goonteh/core` | The framework-agnostic engine (vanilla TS + DOM). Use directly or to write an adapter. |
 | `goonteh/native` | Vanilla DOM sugar: `goonteh().grab(el, …)` / `.drop(el, …)`, with ghost-from-clone. |
 | `goonteh/solid` | SolidJS adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`. |
-| `goonteh/react` | React adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`. |
+| `goonteh/react` | React adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`, `useGoonteh`. |
+| `goonteh/vue` | Vue 3 adapter: `GoontehProvider`, `Grab`, `Drop`, `useGoonteh`. |
+| `goonteh/svelte` | Svelte adapter: `createGoonteh()` → `grab` / `drop` actions + a `drag` store. |
 | `goonteh/react-native` | React Native adapter (experimental): its own PanResponder engine. |
-| `goonteh/vue` | Vue 3 adapter: `GoontehProvider`, `Grab`, `Drop`. |
 
 Every framework is an **optional** peer dependency — the core needs nothing. Adapters are ~50 lines each; the drag mechanics live entirely in the core.
 
@@ -98,6 +101,22 @@ import { GoontehProvider, Grab, Drop } from 'goonteh/vue'
 </template>
 ```
 
+## Svelte
+
+Idiomatic Svelte: `grab` / `drop` are use-directive **actions**, and the live drag is a **store**. Call `createGoonteh()` once in a root component; descendants can reach the same engine with `getGoonteh()`.
+
+```svelte
+<script lang="ts">
+  import { createGoonteh } from 'goonteh/svelte'
+  const { grab, drop, drag } = createGoonteh()
+  const ghost = () => { const el = document.createElement('div'); el.textContent = 'red'; return el }
+</script>
+
+<div use:grab={{ payload: { color: 'red' }, kind: 'swatch', ghost, lift: 'hole' }}>red</div>
+<div use:drop={{ accepts: (k) => k === 'swatch', onDrop: (p) => console.log(p), activeClass: 'ring' }}>drop here</div>
+{#if $drag.dragging}dragging {$drag.active?.kind}{/if}
+```
+
 ## React Native (experimental)
 
 React Native has no DOM, so this adapter ships its own PanResponder-based engine (not the web core). It works with rect hit-testing and a full-screen ghost overlay.
@@ -125,6 +144,48 @@ const g = goonteh()
 g.grab(sourceEl, { payload: { color: 'red' }, kind: 'swatch' }) // ghost defaults to a clone
 g.drop(targetEl, { accepts: (k) => k === 'swatch', onDrop: (p) => console.log(p) })
 ```
+
+## Lift — pick up, leave a hole
+
+By default the source stays put and only the ghost moves. Pass `lift` on a `Grab` to make the element look genuinely picked up:
+
+- **`lift="hole"`** — the source is hidden in place (`visibility: hidden`). Its box keeps its space, so a **blank hole** is left and siblings don't move. Best for grid / canvas reordering.
+- **`lift="collapse"`** — the source is removed from layout (`display: none`), so siblings **close the gap**. Best for lists that should reflow.
+
+```tsx
+<Grab payload={id} kind="card" lift="hole" ghost={() => <CardGhost />}>…</Grab>
+```
+
+goonteh does **not** reflow siblings mid-drag — the hole stays exactly where you picked up. Reordering/insertion happens on **drop** (you update your data and re-render). (React Native approximates lift with opacity/`display`.)
+
+## Reading the drag
+
+To drive your own hover affordances you often need to know *what* is being dragged and *where* the pointer is. The core exposes both; the DOM adapters surface them reactively via `useGoonteh`.
+
+- Core: `engine.active()` → `{ kind, payload } | undefined`; `engine.point()` → `{ x, y } | undefined`.
+- Solid: `const g = useGoonteh()` → `g.active()`, `g.point()` (accessors).
+- React: `const { active, point } = useGoonteh()`.
+- Vue: `const { active, point } = useGoonteh()` (computed refs).
+- Svelte: `$drag.active`, `$drag.point`.
+- React Native: `useGoonteh()` → `{ dragging, active }` (no reactive `point`).
+
+## Recipe: reorder **and** combine (Android-style)
+
+One drag, two outcomes decided by *where* you drop — like an Android home screen: drop between icons to reorder, drop **onto** one to make a folder. Make each card both a `Grab` and a `Drop`, then split on the drop point relative to the target's rect:
+
+```ts
+const CENTRE = 0.55 // inner fraction that counts as "combine"
+const inCentre = (p: Point, r: DOMRect) =>
+  Math.abs(p.x - (r.left + r.width / 2)) <= (r.width * CENTRE) / 2 &&
+  Math.abs(p.y - (r.top + r.height / 2)) <= (r.height * CENTRE) / 2
+
+// inside the target card's onDrop(payload, kind, point):
+const r = el.getBoundingClientRect()
+if (canCombine(payload) && inCentre(point, r)) combine(payload) // onto centre → group
+else reorder(payload)                                           // near edge → move
+```
+
+Read `point()` during hover (via `useGoonteh`) to **preview** the outcome — a ring in the centre zone, an insertion hint near the edge — and use `lift="hole"` so the picked-up slot stays empty while the user aims.
 
 ## Core (write your own adapter)
 
@@ -160,11 +221,15 @@ const off = engine.onChange(() => targetEl.classList.toggle('ring', zone.isOver(
 
 `createGoontehCore(config?)` → engine.
 
-- `draggable(el, { payload, kind, ghost?, disabled?, onEnd? })` → `() => void` (cleanup)
+- `draggable(el, { payload, kind, ghost?, disabled?, lift?, onEnd? })` → `() => void` (cleanup). `lift`: `'hole'` (blank gap, no reflow) or `'collapse'` (siblings close up); omit to leave the source in place.
 - `dropzone(el, { accepts, onDrop })` → `{ isOver(): boolean, destroy(): void }` — `onDrop(payload, kind, point)` where `point` is the drop pointer position in client coordinates `{ x, y }`. Zones are accept-aware: the innermost zone whose `accepts` returns true wins, so nested zones with different `kind`s coexist.
 - `dragging(): boolean`
+- `active(): { kind, payload } | undefined` — the live drag while dragging, else `undefined`
+- `point(): { x, y } | undefined` — the live pointer position while dragging, else `undefined`
 - `onChange(fn): () => void` — fires on drag start / move / zone change / end
 - `destroy(): void`
+
+Nested `Grab`s resolve **innermost-wins** (e.g. a drag handle inside a draggable card): only the deepest grab under the pointer starts.
 
 `config`: `{ threshold?: number; cursor?: string; ghostOffset?: { x: number; y: number } }`.
 
@@ -173,13 +238,17 @@ Zones may nest; the innermost matching zone under the pointer wins. The ghost is
 ## API (SolidJS adapter)
 
 - `<GoontehProvider config?>` — owns one engine; place above every `<Grab>`/`<Drop>`.
-- `<Grab payload kind ghost disabled? class?>` — `ghost` is a `() => JSX.Element` snapshot taken at grab time.
+- `<Grab payload kind ghost disabled? lift? class?>` — `ghost` is a `() => JSX.Element` snapshot taken at grab time; `lift` is `'hole'` | `'collapse'`.
 - `<Drop accepts onDrop class? activeClass?>` — `activeClass` is applied while a compatible drag hovers.
+- `useGoonteh()` → `{ dragging, active, point }` accessors — the live drag, to drive your own affordances.
+
+Every DOM adapter (React / Vue / Svelte / native) mirrors these: a `lift` option on the grab and a `useGoonteh` (or the `drag` store / `active()` + `point()` on native) for the live drag.
 
 ## Notes
 
 - **Touch scrolling.** `<Grab>` sets `touch-action: none` on its wrapper so a touch drag doesn't scroll the page. If a draggable fills a scrollable area, consider a dedicated drag handle.
 - **Cancel.** `Escape` (or a `pointercancel`) aborts the drag with no drop.
+- **`null` vs `undefined`.** `undefined` is absence; `null` only appears at DOM/framework boundaries. If you read the source, see [CONTRIBUTING.md → `null` vs `undefined`](./CONTRIBUTING.md#null-vs-undefined).
 
 ## Status
 

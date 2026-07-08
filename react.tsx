@@ -1,5 +1,5 @@
 /** @jsxImportSource react */
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { createGoontehCore, type GoontehConfig, type GoontehCore, type Point } from './core'
 
@@ -36,12 +36,24 @@ function useCtx(): Ctx {
   return c
 }
 
+export type ActiveDrag = { kind: string; payload: unknown } | undefined
+
+/**
+ * Live drag state, recomputed on every drag change (the provider bumps `version`). Read `active` to
+ * know what is being dragged and `point` for where, e.g. to show a reorder-vs-combine affordance.
+ */
+export function useGoonteh(): { dragging: boolean; active: ActiveDrag; point: Point | undefined } {
+  const { core, version } = useCtx()
+  return useMemo(() => ({ dragging: core.dragging(), active: core.active(), point: core.point() }), [core, version])
+}
+
 /** A draggable source. `ghost` is rendered into a detached element at grab time via a React root. */
 export function Grab({
   payload,
   kind,
   ghost,
   disabled,
+  lift,
   className,
   children,
 }: {
@@ -49,21 +61,24 @@ export function Grab({
   kind: string
   ghost: () => ReactNode
   disabled?: boolean
+  /** 'hole' (blank gap, no reflow) or 'collapse' (siblings close up); omit to leave in place. */
+  lift?: 'hole' | 'collapse'
   className?: string
   children: ReactNode
 }) {
   const { core } = useCtx()
   const ref = useRef<HTMLDivElement>(null)
-  const latest = useRef({ payload, ghost, disabled })
-  latest.current = { payload, ghost, disabled }
+  const latest = useRef({ payload, ghost, disabled, lift })
+  latest.current = { payload, ghost, disabled, lift }
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    let root: Root | null = null
+    let root: Root | undefined
     const cleanup = core.draggable(el, {
       payload: () => latest.current.payload,
       kind,
       disabled: () => !!latest.current.disabled,
+      lift: latest.current.lift,
       ghost: () => {
         const container = document.createElement('div')
         root = createRoot(container)
@@ -72,7 +87,7 @@ export function Grab({
       },
       onEnd: () => {
         root?.unmount()
-        root = null
+        root = undefined
       },
     })
     return () => {
@@ -103,7 +118,7 @@ export function Drop({
 }) {
   const { core } = useCtx()
   const ref = useRef<HTMLDivElement>(null)
-  const handle = useRef<{ isOver: () => boolean } | null>(null)
+  const handle = useRef<{ isOver: () => boolean } | undefined>(undefined)
   const latest = useRef({ accepts, onDrop })
   latest.current = { accepts, onDrop }
   useEffect(() => {

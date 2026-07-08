@@ -1,4 +1,4 @@
-import { defineComponent, h, inject, onBeforeUnmount, onMounted, provide, ref, render, type PropType, type VNode } from 'vue'
+import { computed, defineComponent, h, inject, onBeforeUnmount, onMounted, provide, ref, render, type ComputedRef, type PropType, type VNode } from 'vue'
 import { createGoontehCore, type DropzoneHandle, type GoontehConfig, type GoontehCore, type Point } from './core'
 
 /**
@@ -35,6 +35,26 @@ function useCtx(): Ctx {
   return c
 }
 
+export type ActiveDrag = { kind: string; payload: unknown } | undefined
+
+/**
+ * Live drag state as computed refs (recompute when the provider bumps `version`). Read `active` for
+ * what is being dragged and `point` for where — e.g. to show a reorder-vs-combine affordance.
+ */
+export function useGoonteh(): {
+  dragging: ComputedRef<boolean>
+  active: ComputedRef<ActiveDrag>
+  point: ComputedRef<Point | undefined>
+} {
+  const { core, version } = useCtx()
+  const track = <T>(read: () => T): ComputedRef<T> =>
+    computed(() => {
+      void version.value
+      return read()
+    })
+  return { dragging: track(core.dragging), active: track(core.active), point: track(core.point) }
+}
+
 /** A draggable source. `ghost` returns a VNode, rendered into a detached element at grab time. */
 export const Grab = defineComponent({
   name: 'GoontehGrab',
@@ -43,18 +63,21 @@ export const Grab = defineComponent({
     kind: { type: String, required: true },
     ghost: { type: Function as PropType<() => VNode>, required: true },
     disabled: { type: Boolean, default: false },
+    /** 'hole' (blank gap, no reflow) or 'collapse' (siblings close up); omit to leave in place. */
+    lift: { type: String as PropType<'hole' | 'collapse'>, default: undefined },
   },
   setup(props, { slots }) {
     const { core } = useCtx()
     const el = ref<HTMLElement>()
-    let cleanup: (() => void) | null = null
+    let cleanup: (() => void) | undefined
     onMounted(() => {
       if (!el.value) return
-      let ghostEl: HTMLElement | null = null
+      let ghostEl: HTMLElement | undefined
       cleanup = core.draggable(el.value, {
         payload: () => props.payload,
         kind: props.kind,
         disabled: () => props.disabled,
+        lift: props.lift,
         ghost: () => {
           const container = document.createElement('div')
           render(props.ghost(), container)
@@ -64,7 +87,7 @@ export const Grab = defineComponent({
         onEnd: () => {
           if (ghostEl) {
             render(null, ghostEl)
-            ghostEl = null
+            ghostEl = undefined
           }
         },
       })
@@ -85,7 +108,7 @@ export const Drop = defineComponent({
   setup(props, { slots }) {
     const { core, version } = useCtx()
     const el = ref<HTMLElement>()
-    const handle = ref<DropzoneHandle | null>(null)
+    const handle = ref<DropzoneHandle>()
     onMounted(() => {
       if (!el.value) return
       handle.value = core.dropzone(el.value, {

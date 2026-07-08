@@ -19,17 +19,17 @@ Bare hands slip. Put a glove on. `goonteh` reimplements drag-and-drop on **point
 
 ## Packages / entry points
 
-| Import | What |
-| --- | --- |
-| `goonteh` / `goonteh/core` | The framework-agnostic engine (vanilla TS + DOM). Use directly or to write an adapter. |
-| `goonteh/native` | Vanilla DOM sugar: `goonteh().grab(el, …)` / `.drop(el, …)`, with ghost-from-clone. |
-| `goonteh/solid` | SolidJS adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`. |
-| `goonteh/react` | React adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`, `useGoonteh`. |
-| `goonteh/vue` | Vue 3 adapter: `GoontehProvider`, `Grab`, `Drop`, `useGoonteh`. |
-| `goonteh/svelte` | Svelte adapter: `createGoonteh()` → `grab` / `drop` actions + a `drag` store. |
-| `goonteh/react-native` | React Native adapter (experimental): its own PanResponder engine. |
+| Import | What | Requires |
+| --- | --- | --- |
+| `goonteh` / `goonteh/core` | The framework-agnostic engine (vanilla TS + DOM). Use directly or to write an adapter. | a DOM |
+| `goonteh/native` | Vanilla DOM sugar: `goonteh().grab(el, …)` / `.drop(el, …)`, with ghost-from-clone. | a DOM |
+| `goonteh/solid` | SolidJS adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`, `useGoonteh`. | **solid-js ≥ 1.6** |
+| `goonteh/react` | React adapter: `<GoontehProvider>`, `<Grab>`, `<Drop>`, `useGoonteh`. | **react ≥ 18** (uses `createRoot`) |
+| `goonteh/vue` | Vue 3 adapter: `GoontehProvider`, `Grab`, `Drop`, `useGoonteh`. | **vue ≥ 3.2** |
+| `goonteh/svelte` | Svelte adapter: `createGoonteh()` → `grab` / `drop` actions + a `drag` store. | **svelte ≥ 4** |
+| `goonteh/react-native` | React Native adapter (experimental): its own PanResponder engine. | **react-native ≥ 0.70** |
 
-Every framework is an **optional** peer dependency — the core needs nothing. Adapters are ~50 lines each; the drag mechanics live entirely in the core.
+Each framework is an **optional** peer dependency (the version above is enforced in `peerDependencies`) — install only the one you use; the core needs nothing. Adapters are thin; the drag mechanics live entirely in the core.
 
 ## Install
 

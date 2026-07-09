@@ -187,6 +187,35 @@ else reorder(payload)                                           // near edge →
 
 Read `point()` during hover (via `useGoonteh`) to **preview** the outcome — a ring in the centre zone, an insertion hint near the edge — and use `lift="hole"` so the picked-up slot stays empty while the user aims.
 
+## Typed payloads — decode at the boundary
+
+`payload` is `unknown` on purpose. goonteh never picks an error model for you, so it composes with whatever you bring — [Effect](https://effect.website) `Schema`, `neverthrow`, or a plain type guard. The library stays bare; the typing glove goes on *your* hand, not the tool.
+
+So don't assert (`payload as Part`) — **decode** at the drop boundary and handle the "not my shape" case explicitly. The Effect way, with `Schema`:
+
+```ts
+import { Schema as S } from '@effect/schema'
+import { Option } from 'effect'
+
+const Part = S.Struct({ label: S.String, type: S.String, data: S.Record(S.String, S.Unknown) })
+const asPart = S.decodeUnknownOption(Part) // (u: unknown) => Option<Part>
+
+// inside onDrop(payload, kind, point):
+Option.match(asPart(payload), {
+  onSome: (part) => attach(part), // decoded → a real Part
+  onNone: () => {},               // foreign shape → ignore; nothing downstream corrupts
+})
+```
+
+No Effect in the tree? A one-line guard has the same shape — the unsafe cast lives *inside* the decoder, guarded, never at the call site:
+
+```ts
+const asPart = (u: unknown): Part | undefined =>
+  typeof u === 'object' && u !== null && 'type' in u ? (u as Part) : undefined
+```
+
+`active().payload` is `unknown` for the same reason; decode it the same way. This keeps goonteh error-model-neutral and your domain fully typed on your side of the line.
+
 ## Core (write your own adapter)
 
 The core is imperative and framework-free. Wire it to your own elements.

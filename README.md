@@ -37,6 +37,8 @@ Each framework is an **optional** peer dependency (the version above is enforced
 npm i goonteh
 ```
 
+> 📖 Copy-paste recipes for every adapter live in **[EXAMPLES.md](./EXAMPLES.md)** — reorder-and-combine, drag handles, opt-out zones (resize handles), typed payloads, and more.
+
 ## SolidJS
 
 Wrap your app once with `<GoontehProvider>`, then use `<Grab>` for sources and `<Drop>` for targets.
@@ -260,6 +262,16 @@ const off = engine.onChange(() => targetEl.classList.toggle('ring', zone.isOver(
 
 Nested `Grab`s resolve **innermost-wins** (e.g. a drag handle inside a draggable card): only the deepest grab under the pointer starts.
 
+**Opt-out zones (`data-goonteh-nodrag`).** A pointerdown inside any element carrying `data-goonteh-nodrag` never starts a drag. Use it for interactive sub-regions that live *inside* a draggable but should act on their own — resize handles, inline buttons, sliders. (Contrast with a *drag handle*, which you get by making the handle itself the `Grab`.)
+
+```html
+<div data-goonteh-grab>            <!-- draggable card -->
+  …content…
+  <span data-goonteh-nodrag        <!-- resize handle: acts on its own, never drags the card -->
+        onpointerdown="startResize(event)"></span>
+</div>
+```
+
 `config`: `{ threshold?: number; cursor?: string; ghostOffset?: { x: number; y: number } }`.
 
 Zones may nest; the innermost matching zone under the pointer wins. The ghost is `pointer-events: none`, so it never interferes with hit testing.
@@ -276,6 +288,7 @@ Every DOM adapter (React / Vue / Svelte / native) mirrors these: a `lift` option
 ## Notes
 
 - **Touch scrolling.** `<Grab>` sets `touch-action: none` on its wrapper so a touch drag doesn't scroll the page. If a draggable fills a scrollable area, consider a dedicated drag handle.
+- **Opt-out zones (`data-goonteh-nodrag`).** Mark interactive sub-regions inside a draggable (resize handles, inline buttons) so their pointerdown acts on them instead of starting a drag.
 - **Cancel.** `Escape` (or a `pointercancel`) aborts the drag with no drop.
 - **`null` vs `undefined`.** `undefined` is absence; `null` only appears at DOM/framework boundaries. If you read the source, see [CONTRIBUTING.md → `null` vs `undefined`](./CONTRIBUTING.md#null-vs-undefined).
 

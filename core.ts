@@ -198,6 +198,7 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
         if (opts.disabled?.()) return
         if (e.pointerType === 'mouse' && e.button !== 0) return
         const target = e.target as Element | null
+        if (target && target.closest('[data-goonteh-nodrag]')) return // opt-out zones (e.g. resize handles) never start a drag
         if (target && target.closest('[data-goonteh-grab]') !== el) return // nested grabs: innermost wins
         const sx = e.clientX
         const sy = e.clientY

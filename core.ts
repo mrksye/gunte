@@ -1,9 +1,11 @@
 /**
  * goonteh core — a framework-agnostic pointer drag-and-drop engine.
  *
- * Pure TypeScript + DOM, no framework. It tracks a drag from pointer-down (past a small
- * threshold) through pointer-up, hit-tests registered drop zones with `elementFromPoint`,
- * manages an optional ghost element that follows the pointer, and drives the body cursor.
+ * Pure TypeScript + DOM, no framework. For a single primary pointer it tracks a drag from
+ * pointer-down (past a small threshold) through pointer-up, hit-tests registered drop zones by
+ * geometry (rect containment + DOM nesting, not paint order), manages an optional ghost element
+ * that follows the pointer, and drives the body cursor. Secondary touches are ignored, pointer
+ * capture keeps events flowing off-element, and teardown restores the body's prior inline styles.
  * Framework adapters (see `./solid`) wrap this; you can also use it directly with vanilla JS.
  *
  * The name respells 軍手 (gunte), Japanese for "work gloves": native HTML5 DnD slips (no
@@ -93,29 +95,36 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
   const offset = config.ghostOffset ?? { x: -40, y: -60 }
 
   let active: Active | undefined
+  let activePointerId: number | undefined
+  let captureEl: HTMLElement | undefined
+  let prevCursor = ''
+  let prevUserSelect = ''
+  let armedCleanup: (() => void) | undefined
   let px = 0
   let py = 0
   let overId: number | undefined
   const zones = new Map<number, { el: HTMLElement } & DropzoneOptions>()
+  const draggableCleanups = new Set<() => void>()
   let nextId = 1
   const subs = new Set<() => void>()
   const notify = () => subs.forEach((f) => f())
 
+  const rectHit = (el: HTMLElement, x: number, y: number): boolean => {
+    const r = el.getBoundingClientRect()
+    return x >= r.left && x < r.right && y >= r.top && y < r.bottom
+  }
+
   /**
-   * Walk up from the element under the pointer to the innermost registered zone that ACCEPTS the
-   * active drag. Accept-aware so nested zones with different `kind`s coexist (a child zone that
-   * rejects the payload is skipped in favour of an accepting ancestor).
+   * The innermost registered zone that ACCEPTS the active drag and whose rect contains the pointer.
+   * Resolved by geometry + DOM nesting rather than paint order (elementFromPoint), so a zone stays
+   * reachable even when a decorative overlay or a sibling is painted on top of it, and accept-aware so
+   * a rejecting child yields to an accepting ancestor.
    */
   const zoneAt = (x: number, y: number): { id: number; zone: DropzoneOptions } | undefined => {
     if (!active) return undefined
-    let node = document.elementFromPoint(x, y) as Element | null
-    while (node) {
-      for (const [id, z] of zones) {
-        if (z.el === node && z.accepts(active.kind, active.payload)) return { id, zone: z }
-      }
-      node = node.parentElement
-    }
-    return undefined
+    const hits: { id: number; zone: { el: HTMLElement } & DropzoneOptions }[] = []
+    for (const [id, z] of zones) if (z.accepts(active.kind, active.payload) && rectHit(z.el, x, y)) hits.push({ id, zone: z })
+    return hits.find((h) => !hits.some((o) => o !== h && h.zone.el.contains(o.zone.el))) ?? hits[hits.length - 1]
   }
 
   const positionGhost = () => {
@@ -125,7 +134,7 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
   }
 
   const onMove = (e: PointerEvent) => {
-    if (!active) return
+    if (!active || e.pointerId !== activePointerId) return // only the finger that started this drag
     e.preventDefault()
     px = e.clientX
     py = e.clientY
@@ -134,11 +143,17 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
     notify()
   }
   const onUp = (e: PointerEvent) => {
-    if (active) {
-      const hit = zoneAt(e.clientX, e.clientY)
+    if (!active || e.pointerId !== activePointerId) return
+    const hit = zoneAt(e.clientX, e.clientY)
+    // Always tear down, even if the drop callback throws — no leaked ghost / listeners / cursor / lift.
+    try {
       if (hit) hit.zone.onDrop(active.payload, active.kind, { x: e.clientX, y: e.clientY })
+    } finally {
+      end()
     }
-    end()
+  }
+  const onCancel = (e: PointerEvent) => {
+    if (active && e.pointerId === activePointerId) end()
   }
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') end()
@@ -147,34 +162,47 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
   const listen = () => {
     window.addEventListener('pointermove', onMove, { passive: false })
     window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', end)
+    window.addEventListener('pointercancel', onCancel)
     window.addEventListener('keydown', onKey)
   }
   const unlisten = () => {
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
-    window.removeEventListener('pointercancel', end)
+    window.removeEventListener('pointercancel', onCancel)
     window.removeEventListener('keydown', onKey)
   }
 
   function end() {
     if (!active) return
     const a = active
+    const id = activePointerId
+    const capEl = captureEl
     active = undefined
+    activePointerId = undefined
+    captureEl = undefined
     overId = undefined
     unlisten()
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
+    if (capEl && id !== undefined) {
+      try {
+        capEl.releasePointerCapture(id)
+      } catch {
+        // already auto-released on pointerup/cancel, or the source was detached — fine
+      }
+    }
+    // Restore the body's prior inline styles rather than blanking them (don't clobber the app's).
+    document.body.style.cursor = prevCursor
+    document.body.style.userSelect = prevUserSelect
     if (a.ghost) a.ghost.remove()
     a.unlift?.()
     a.onEnd?.()
     notify()
   }
 
-  const begin = (el: HTMLElement, opts: DraggableOptions, x: number, y: number) => {
+  const begin = (el: HTMLElement, opts: DraggableOptions, pointerId: number, x: number, y: number) => {
     px = x
     py = y
     overId = undefined
+    activePointerId = pointerId
     const ghost = opts.ghost?.()
     active = { payload: opts.payload(), kind: opts.kind, ghost, unlift: applyLift(el, opts.lift), onEnd: opts.onEnd }
     if (ghost) {
@@ -185,8 +213,17 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
       positionGhost()
       document.body.appendChild(ghost)
     }
+    prevCursor = document.body.style.cursor
+    prevUserSelect = document.body.style.userSelect
     document.body.style.cursor = cursor
     document.body.style.userSelect = 'none'
+    // Capture keeps pointer events flowing even if the finger leaves the element / viewport / an iframe.
+    try {
+      el.setPointerCapture(pointerId)
+      captureEl = el
+    } catch {
+      captureEl = undefined
+    }
     listen()
     notify()
   }
@@ -194,34 +231,48 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
   return {
     draggable(el, opts) {
       el.setAttribute('data-goonteh-grab', '')
+      const prevTouchAction = el.style.touchAction
+      el.style.touchAction = 'none' // so a touch drag isn't stolen by the browser's scroll/pan
       const down = (e: PointerEvent) => {
         if (opts.disabled?.()) return
+        if (!e.isPrimary) return // ignore secondary touches of a multi-touch gesture
         if (e.pointerType === 'mouse' && e.button !== 0) return
+        if (active) return // a drag is already in flight
         const target = e.target as Element | null
         if (target && target.closest('[data-goonteh-nodrag]')) return // opt-out zones (e.g. resize handles) never start a drag
         if (target && target.closest('[data-goonteh-grab]') !== el) return // nested grabs: innermost wins
+        const id = e.pointerId
         const sx = e.clientX
         const sy = e.clientY
-        let armed = true
         const move = (ev: PointerEvent) => {
-          if (!armed) return
+          if (ev.pointerId !== id) return // only the finger that pressed down here
           if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < threshold) return
           disarm()
-          begin(el, opts, ev.clientX, ev.clientY)
+          begin(el, opts, id, ev.clientX, ev.clientY)
+        }
+        const stop = (ev: PointerEvent) => {
+          if (ev.pointerId === id) disarm() // released or cancelled before crossing the threshold
         }
         const disarm = () => {
-          armed = false
+          armedCleanup = undefined
           window.removeEventListener('pointermove', move)
-          window.removeEventListener('pointerup', disarm)
+          window.removeEventListener('pointerup', stop)
+          window.removeEventListener('pointercancel', stop)
         }
+        armedCleanup = disarm
         window.addEventListener('pointermove', move, { passive: false })
-        window.addEventListener('pointerup', disarm)
+        window.addEventListener('pointerup', stop)
+        window.addEventListener('pointercancel', stop)
       }
       el.addEventListener('pointerdown', down)
-      return () => {
+      const cleanup = () => {
         el.removeEventListener('pointerdown', down)
         el.removeAttribute('data-goonteh-grab')
+        el.style.touchAction = prevTouchAction
+        draggableCleanups.delete(cleanup)
       }
+      draggableCleanups.add(cleanup)
+      return cleanup
     },
     dropzone(el, opts) {
       const id = nextId++
@@ -243,7 +294,9 @@ export function createGoontehCore(config: GoontehConfig = {}): GoontehCore {
       }
     },
     destroy: () => {
+      armedCleanup?.() // a drag that was arming but not yet begun
       end()
+      ;[...draggableCleanups].forEach((c) => c()) // remove every registered pointerdown listener
       subs.clear()
       zones.clear()
     },

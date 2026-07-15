@@ -2,9 +2,9 @@
 
 Tiny **pointer-based** drag-and-drop that works on **touch** and never shows the **no-drop (🚫) cursor**.
 
-Pronounced "goon-teh" — from Japanese 軍手.
+Pronounced "goon-teh" — the name respells 軍手, Japanese for *work gloves*.
 
-`goonteh` (軍手, Japanese for *work gloves*) exists because the native HTML5 Drag and Drop API has two dealbreakers:
+`goonteh` exists because the native HTML5 Drag and Drop API has two dealbreakers:
 
 1. **It doesn't work on touch.** `draggable` / `dragstart` never fire on phones and tablets.
 2. **Its cursor is not yours.** On some platforms (notably Chromium on Linux) the "no-drop" cursor sticks even over a valid drop target, and CSS can't override it.

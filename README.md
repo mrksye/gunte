@@ -2,12 +2,16 @@
 
 Tiny **pointer-based** drag-and-drop that works on **touch** and never shows the **no-drop (🚫) cursor**.
 
+Pronounced "goon-teh" — from Japanese 軍手.
+
 `goonteh` (軍手, Japanese for *work gloves*) exists because the native HTML5 Drag and Drop API has two dealbreakers:
 
 1. **It doesn't work on touch.** `draggable` / `dragstart` never fire on phones and tablets.
 2. **Its cursor is not yours.** On some platforms (notably Chromium on Linux) the "no-drop" cursor sticks even over a valid drop target, and CSS can't override it.
 
 Bare hands slip. Put a glove on. `goonteh` reimplements drag-and-drop on **pointer events**, so it works with mouse, touch, and pen alike, and the cursor and drop highlight are **fully controlled with CSS** — no forbidden cursor, ever.
+
+goonteh was born while building a construction-site scheduling app, where dragging heavy machinery and resources needed to work reliably on Linux and touch devices.
 
 - 🖐️ Mouse, touch, and pen (pointer events)
 - 🚫 No native no-drop cursor — you own the look
@@ -16,6 +20,21 @@ Bare hands slip. Put a glove on. `goonteh` reimplements drag-and-drop on **point
 - 🕳️ **Lift** the source as you drag — leave a blank hole, or collapse the gap
 - 🔎 **Read the live drag** (`active` / `point`) to drive your own affordances (reorder vs. combine…)
 - 🧩 **Framework-agnostic core** + thin adapters — zero deps beyond your framework
+
+## A primitive, not a framework
+
+goonteh isn't a drag-and-drop framework — it's a thin primitive for safely **gripping** things through Pointer Events, and nothing more.
+
+If [dnd-kit](https://dndkit.com) is the general contractor that takes on the whole site — sortable models, collision detection, keyboard sensors, a full accessibility layer — goonteh is the pair of **work gloves** you're handed on that site: it protects your hands and lets you grip reliably. Tiny, and the one you reach for when all you want is *pick it up and put it down*. No sortable model, no collision strategy, no reorder baked in — you keep those; goonteh just does the gripping.
+
+The four words are the whole surface. Each keeps its exact technical meaning, and each is a move you already know from the yard:
+
+- **`GoontehProvider`** — the gloves are handed out (one drag context for your app)
+- **`Grab`** — you grip a thing (a drag source)
+- **`Lift`** — you pick it up (the source leaves a blank hole, or the gap collapses, as you carry it)
+- **`Drop`** — you set it down (a drop target)
+
+Gloves handed out, grab, lift, drop. That's all it does.
 
 ## Packages / entry points
 
@@ -30,6 +49,8 @@ Bare hands slip. Put a glove on. `goonteh` reimplements drag-and-drop on **point
 | `goonteh/react-native` | React Native adapter (experimental): its own PanResponder engine. | **react-native ≥ 0.70** |
 
 Each framework is an **optional** peer dependency (the version above is enforced in `peerDependencies`) — install only the one you use; the core needs nothing. Adapters are thin; the drag mechanics live entirely in the core.
+
+> **React Native adapter is experimental and not covered by the web-core compatibility guarantees.** It ships its own PanResponder engine (not the shared web core); the web adapters (native/solid/react/vue/svelte) are the stable surface.
 
 ## Install
 

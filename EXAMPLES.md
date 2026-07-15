@@ -176,9 +176,9 @@ No framework — `goonteh/native` gives ghost-from-clone sugar over the core.
 ```ts
 import { goonteh } from 'goonteh/native'
 
-const g = goonteh()
-g.grab(cardEl, { kind: 'card', payload: { id: cardEl.dataset.id } })
-g.drop(laneEl, {
+const gloves = goonteh()
+gloves.grab(cardEl, { kind: 'card', payload: { id: cardEl.dataset.id } })
+gloves.drop(laneEl, {
   accepts: (kind) => kind === 'card',
   onDrop: (payload, kind, point) => console.log(payload, point),
 })
